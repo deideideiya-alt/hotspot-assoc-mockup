@@ -296,6 +296,9 @@
   .sel-cell .sel-lab{font-size:11.5px;color:var(--ink-2);font-weight:600;}
   .sel-cell .ipt{width:100%;}
   .sel-cell .ipt{margin-bottom:0;}
+  .seg-inline{display:flex;gap:10px;align-items:center;}
+  .seg-inline .ipt{flex:1;min-width:0;}
+  .seg-inline .seg-op{flex:0 0 110px;}
   .cfg-form .img-row{grid-template-columns:120px minmax(0,1fr) 160px;}
   .cfg-form .img-row .pv{width:150px;height:84px;border-radius:6px;background:linear-gradient(135deg,#2E4E68,#4A7BA6);position:relative;overflow:hidden;flex-shrink:0;}
   .cfg-form .img-row .pv .pl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;}
@@ -2580,7 +2583,12 @@
           row("国家 *","<input class='ipt' value='"+esc(COUNTRY_LABEL[ev.country]||ev.country)+"'>")+
           row("机型","<input class='ipt' value='RT25551 / RC7450 / RC83000 +2'>")+
           row("时区","<input class='ipt' value='"+esc(MEDIA_TZMAP[ev.country]||"UTC+00:00")+"'>")+
-          row("分组标签","<input class='ipt' placeholder='SPORTS / NEWS'>")+
+          row("分众标签",
+            "<div class='seg-inline'>"+
+              "<select class='ipt seg-op'><option>包含</option><option>不包含</option></select>"+
+              "<select class='ipt seg-tag'><option>运动爱好者</option><option>新闻关注者</option><option>影视观众</option><option>财经用户</option><option>科技发烧友</option><option>家庭亲子</option><option>年轻潮流群体</option></select>"+
+            "</div>"
+          )+
           row("推送开始时间","<input class='ipt' type='datetime-local'>")+
           row("推送结束时间","<input class='ipt' type='datetime-local'>")+
           "<div class='tip'>消息名称按「国家-媒资标题-热点标题-日期」自动预填充；机型随国家自动拉取；推送起止时间由运营人工填写。</div>"

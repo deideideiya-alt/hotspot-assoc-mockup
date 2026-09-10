@@ -291,6 +291,11 @@
   .cfg-form .color-field .ipt-color{width:38px;height:30px;padding:2px;border:0.5px solid var(--line);border-radius:var(--r-s);background:var(--surface);cursor:pointer;}
   .cfg-form .color-field .ipt-hex{width:104px;text-transform:uppercase;}
   .cfg-form .tip{font-size:11px;color:var(--ink-3);margin:-4px 0 10px 132px;line-height:1.5;}
+  .sel-inline{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;}
+  .sel-cell{display:flex;flex-direction:column;gap:5px;flex:1;min-width:230px;}
+  .sel-cell .sel-lab{font-size:11.5px;color:var(--ink-2);font-weight:600;}
+  .sel-cell .ipt{width:100%;}
+  .sel-cell .ipt{margin-bottom:0;}
   .cfg-form .img-row{grid-template-columns:120px minmax(0,1fr) 160px;}
   .cfg-form .img-row .pv{width:150px;height:84px;border-radius:6px;background:linear-gradient(135deg,#2E4E68,#4A7BA6);position:relative;overflow:hidden;flex-shrink:0;}
   .cfg-form .img-row .pv .pl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;}
@@ -2601,43 +2606,56 @@
       "</div>"+
     "</div>";
   }
-  /* 下拉搜索框：input + datalist，输入即过滤 */
-  function searchSel(id, opts, ph){
+  /* 下拉搜索框：input + datalist，输入即过滤；labels 可传入与 opts 平行的中文名，下拉中展示「ID ｜ 名称」 */
+  function searchSel(id, opts, ph, labels){
+    var optsHtml = opts.map(function(o,i){
+      var extra = (labels && labels[i]!=null) ? " ｜ "+esc(labels[i]) : "";
+      return "<option value='"+esc(o)+"'>"+esc(o)+extra+"</option>";
+    }).join("");
     return "<input class='ipt' list='"+id+"' placeholder='"+(ph||"输入关键字搜索")+"'>"+
-      "<datalist id='"+id+"'>"+opts.map(function(o){ return "<option value='"+esc(o)+"'>"; }).join("")+"</datalist>";
+      "<datalist id='"+id+"'>"+optsHtml+"</datalist>";
   }
   var APP_IDS = ["APP-8801","APP-8802","APP-8803","APP-8804","APP-8805"];
   var APP_NAMES = ["TCL Channel BR","TCL Channel FR","TCL Channel Global","TCL Channel US","TCL Channel EU"];
   var RES_IDS = ["R-1024","R-1025","R-1031","R-1032","R-1040"];
   var RES_NAMES = ["RT25551_BFMTV_Featured","Feature_Intl_News","Live_Tab_Global","Row_TopNews_BR","Row_Sports_EU"];
-  /* 端外TCL Tab：资源ID / 资源名称（与 Selected Row 互换后） */
+  /* 端外TCL Tab：应用ID / 应用名称（一行，任选其一唯一定位应用）+ 生成 应用Logo / 应用背景图 */
   function panelTcl(ev){
     return "<div class='card' style='max-width:900px'>"+
-      cfgSection("素材上传 · 资源选择 <span class='sub'>按【资源ID】或【资源名称】搜索选择</span>",
-        row("资源ID", searchSel("dlTclResId", RES_IDS, "搜索资源ID，如 R-1024"))+
-        row("资源名称", searchSel("dlTclResName", RES_NAMES, "搜索资源名称，如 Feature_Intl_News"))
+      cfgSection("应用选择 <span class='sub'>按【应用ID】或【应用名称】任选其一即可唯一定位应用</span>",
+        row("应用",
+          "<div class='sel-inline'>"+
+            "<span class='sel-cell'><span class='sel-lab'>应用ID</span>"+searchSel("dlTclAppId", APP_IDS, "搜索应用ID，如 APP-8801", APP_NAMES)+"</span>"+
+            "<span class='sel-cell'><span class='sel-lab'>应用名称</span>"+searchSel("dlTclAppName", APP_NAMES, "搜索应用名称，如 TCL Channel BR", APP_IDS)+"</span>"+
+          "</div>"
+        )
       )+
       hotspotImgsSection(ev)+
       cfgSection("生成素材 <span class='sub'>根据【热点媒资配置】场景模板生成 · 模板："+esc(tplOf(ev,"端外TCL Tab"))+"</span>",
+        genImgRow("应用Logo","1280×720")+
+        genImgRow("应用背景图","1280×720")
+      )+
+      "<div class='tip'>素材按【热点媒资配置】场景模板套版；保存为草稿、提交即联动系统接口。</div>"+
+    "</div>";
+  }
+  /* 端外 Selected Row：资源ID / 资源名称（一行，任选其一唯一定位资源）+ 生成 前置背景 / 后置背景 / 海报 */
+  function panelSelected(ev){
+    return "<div class='card' style='max-width:900px'>"+
+      cfgSection("资源选择 <span class='sub'>按【资源ID】或【资源名称】任选其一即可唯一定位资源</span>",
+        row("资源",
+          "<div class='sel-inline'>"+
+            "<span class='sel-cell'><span class='sel-lab'>资源ID</span>"+searchSel("dlSelResId", RES_IDS, "搜索资源ID，如 R-1024", RES_NAMES)+"</span>"+
+            "<span class='sel-cell'><span class='sel-lab'>资源名称</span>"+searchSel("dlSelResName", RES_NAMES, "搜索资源名称，如 Feature_Intl_News", RES_IDS)+"</span>"+
+          "</div>"
+        )
+      )+
+      hotspotImgsSection(ev)+
+      cfgSection("生成素材 <span class='sub'>根据【热点媒资配置】场景模板直接生成 · 模板："+esc(tplOf(ev,"端外Selected Row"))+"</span>",
         genImgRow("前置背景","1080P")+
         genImgRow("后置背景","1080P")+
         genImgRow("海报","1280×720")
       )+
       "<div class='tip'>素材按【热点媒资配置】场景模板套版；保存为草稿、提交即联动系统接口。</div>"+
-    "</div>";
-  }
-  /* 端外 Selected Row：应用ID / 应用名称（与 TCL Tab 互换后） */
-  function panelSelected(ev){
-    return "<div class='card' style='max-width:900px'>"+
-      cfgSection("应用素材 · 应用选择 <span class='sub'>按【应用ID】或【应用名称】搜索选择</span>",
-        row("应用ID", searchSel("dlSelAppId", APP_IDS, "搜索应用ID，如 APP-8801"))+
-        row("应用名称", searchSel("dlSelAppName", APP_NAMES, "搜索应用名称，如 TCL Channel BR"))
-      )+
-      hotspotImgsSection(ev)+
-      cfgSection("生成素材 <span class='sub'>根据【热点媒资配置】场景模板直接生成 · 模板："+esc(tplOf(ev,"端外Selected Row"))+"</span>",
-        genImgRow("应用Logo","1280×720")+
-        genImgRow("应用背景图","1280×720")
-      )+
     "</div>";
   }
   function panelBanner(ev){
@@ -2729,6 +2747,18 @@
       p.addEventListener("input",function(){ hx.value=p.value.toUpperCase(); });
       hx.addEventListener("change",function(){ var v=hx.value.trim(); if(/^#?[0-9a-fA-F]{6}$/.test(v)){ if(v[0]!=="#")v="#"+v; p.value=v; hx.value=v.toUpperCase(); } });
     });
+    /* 应用ID/应用名称、资源ID/资源名称 二选一联动：选中一个自动带出另一个 */
+    if(cfgState.active==="端外TCL Tab"){ bindSelPair("dlTclAppId","dlTclAppName", APP_IDS, APP_NAMES); }
+    if(cfgState.active==="端外Selected Row"){ bindSelPair("dlSelResId","dlSelResName", RES_IDS, RES_NAMES); }
+  }
+  /* 两个并排搜索框联动：arrA[i] <-> arrB[i] 一一对应，输入/选择任一即带出另一个 */
+  function bindSelPair(idA, idB, arrA, arrB){
+    var a=$(idA), b=$(idB);
+    if(!a||!b) return;
+    var ab={}, ba={};
+    arrA.forEach(function(x,i){ ab[x]=arrB[i]; ba[arrB[i]]=x; });
+    function link(src, tgt, m){ src.addEventListener("input", function(){ var v=src.value.trim(); tgt.value = m[v]!=null ? m[v] : ""; }); }
+    link(a,b,ab); link(b,a,ba);
   }
 
   document.querySelectorAll("[data-gowork]").forEach(function(b){

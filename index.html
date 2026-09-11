@@ -1076,6 +1076,22 @@
     r.createdAt = "08-" + (25 + (i % 4)) + " " + (9 + (i % 6)) + ":" + (5 + (i * 11) % 49);
     if(i % 4 !== 0) r.owner = RISK_OPERATOR_POOL[i % RISK_OPERATOR_POOL.length];
   });
+  /* 按国家聚合：一个国家只有一行，合并同国家全部分类的关键词；不因创建人不同而拆成多条 */
+  (function aggregateRisksByCountry(){
+    var by = {}, order = [], n = 1;
+    RISKS.forEach(function(r){
+      if(!by[r.country]){
+        by[r.country] = {country:r.country, keywords:[], categories:[], status:r.status||"启用", createdBy:r.createdBy, createdAt:r.createdAt, updated:r.updated, owner:r.owner};
+        order.push(r.country);
+      }
+      var o = by[r.country];
+      r.keywords.forEach(function(k){ if(o.keywords.indexOf(k)===-1) o.keywords.push(k); });
+      if(r.category && o.categories.indexOf(r.category)===-1) o.categories.push(r.category);
+      if(r.updated > o.updated) o.updated = r.updated;
+    });
+    RISKS = order.map(function(c){ var o = by[c]; o.id = "RSK-" + ("00"+n).slice(-3); n++; return o; });
+    riskSeq = n;
+  })();
   var CURRENT_OPERATOR = "运营 00000000";
 
   /* ---- 热点海报历史库：历史运营在【去配置】页【提交】已生成的热点海报 ---- */
@@ -1469,7 +1485,7 @@
       isEdit ? "规则 ID "+risk.id+" · 保存后立即命中扫描" : "按国家维护关键词短语",
       "<div class=\"risk-form\">"+
         (isEdit?"<div class=\"row\"><span class=\"k\">创建信息</span><span class=\"v\" style=\"padding-top:6px;font-size:12px;color:var(--ink-2)\">创建人 "+esc(risk.createdBy)+" · 创建于 "+esc(risk.createdAt)+"</span></div>":"")+
-        "<div class=\"row\"><span class=\"k\">国家 *</span><span class=\"v\"><select class=\"ipt\" id=\"rfCountry\">"+riskCountryOptions(isEdit?risk.country:RISK_COUNTRIES[0])+"</select></span></div>"+
+        "<div class=\"row\"><span class=\"k\">国家 *</span><span class=\"v\"><select class=\"ipt\" id=\"rfCountry\""+(isEdit?" disabled":"")+">"+riskCountryOptions(isEdit?risk.country:RISK_COUNTRIES[0])+"</select></span></div>"+
         "<div class=\"row\"><span class=\"k\">关键词 *</span><span class=\"v\"><textarea id=\"rfKeywords\" placeholder=\"多个关键词用英文逗号或换行分隔，如：coup d'etat, military coup, golpe militar\">"+(isEdit?esc(risk.keywords.join(", ")):"")+"</textarea></span></div>"+
         "<div class=\"row\"><span class=\"k\">状态</span><span class=\"v\"><span class=\"sel-st\"><label><input type=\"radio\" name=\"rfStatus\" value=\"启用\""+(isEdit&&risk.status!=="启用"?"":" checked")+">启用</label><label><input type=\"radio\" name=\"rfStatus\" value=\"停用\""+(isEdit&&risk.status==="停用"?" checked":"")+">停用</label></span></span></div>"+
         "<p class=\"tip\">保存后立即生效：命中关键词的热点将在「热点工作台」【热点标签】区标记【高风险】；停用状态下词库仅保留不生效。</p>"+
@@ -1483,13 +1499,22 @@
       var status = document.querySelector('input[name="rfStatus"]:checked').value;
       if(keywords.length===0){ toast("请至少填写一个关键词"); return; }
       if(isEdit){
-        risk.country=country;risk.keywords=keywords;risk.status=status;
+        risk.keywords=keywords;risk.status=status;
         risk.updated="刚刚";risk.owner=CURRENT_OPERATOR;
         toast("风险词规则 "+risk.id+" 已更新");
       } else {
-        RISKS.unshift({id:"RSK-"+(riskSeq<10?"00":"")+(riskSeq<100?"0":"")+riskSeq++,country:country,keywords:keywords,status:status,createdBy:CURRENT_OPERATOR,createdAt:nowMMDD(),updated:"刚刚",owner:CURRENT_OPERATOR});
-        buildRiskFilterOptions();
-        toast("已新增 "+country+" 风险词规则");
+        var exist = null;
+        for(var i=0;i<RISKS.length;i++){ if(RISKS[i].country===country){ exist=RISKS[i]; break; } }
+        if(exist){
+          keywords.forEach(function(k){ if(exist.keywords.indexOf(k)===-1) exist.keywords.push(k); });
+          exist.status=status; exist.updated="刚刚"; exist.owner=CURRENT_OPERATOR;
+          toast("已合并关键词到 "+country+" 风险词库（同一国家仅一条）");
+        } else {
+          RISKS.unshift({id:"RSK-"+("00"+riskSeq).slice(-3),country:country,keywords:keywords,categories:[],status:status,createdBy:CURRENT_OPERATOR,createdAt:nowMMDD(),updated:"刚刚",owner:CURRENT_OPERATOR});
+          riskSeq++;
+          buildRiskFilterOptions();
+          toast("已新增 "+country+" 风险词库");
+        }
       }
       closeModal(); renderRisks();
     });

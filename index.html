@@ -545,6 +545,14 @@
   .media-sel-bar .msb{display:inline-flex;align-items:center;gap:6px;background:#fff;border:0.5px solid var(--line-2);border-radius:999px;padding:1px 6px 1px 10px;font-size:11.5px;color:var(--ink);}
   .media-sel-bar .msb .x{color:var(--ink-3);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;}
   .media-sel-bar .msb .x:hover{color:var(--bad);}
+  .media-info-card{border:0.5px solid var(--line);border-radius:var(--r-m);padding:14px 16px;margin-bottom:6px;background:var(--surface-2);}
+  .media-info-card .mic-title{font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:10px;letter-spacing:0.3px;}
+  .media-info-card .mic-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 18px;}
+  .media-info-card .mic-cell{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .media-info-card .mic-l{font-size:11px;color:var(--ink-3);}
+  .media-info-card .mic-v{font-size:12.5px;color:var(--ink);word-break:break-word;}
+  .media-info-card .mic-v .pmn{font-weight:500;}
+  .media-info-card .mic-v .pmi{font-size:11px;color:var(--ink-3);margin-top:1px;}
   .media-form .s-title{font-size:13px;font-weight:500;margin:16px 0 8px;}
   .media-form .s-title .req{color:var(--bad);margin-left:3px;}
   .media-form .s-title .opt{color:var(--ink-3);font-weight:400;font-size:11px;margin-left:6px;}
@@ -2112,7 +2120,8 @@
       st.noticeNw = JSON.parse(JSON.stringify(item.notice||st.noticeNw));
     }
     mediaModalState = st;
-    renderMediaStep1(st);
+    if(st.mode==="edit"){ renderMediaEditSingle(st); }
+    else { renderMediaStep1(st); }
   }
 
   function renderMediaStep1(st){
@@ -2202,45 +2211,79 @@
     return '<div class="media-sel-bar"><b style="font-weight:500">已选媒资：</b>'+(chips||"<span>—</span>")+"</div>";
   }
 
-  function renderMediaStep2(st){
-    var isEdit = st.mode==="edit";
+  /* 编辑单页顶部：选中媒资的七项信息卡（媒资信息/内容商/可用国家/播放形式/媒资状态/类型/语言） */
+  function mediaInfoCardHtml(st){
+    var v = (st.picked && st.picked[0]) || st.editId;
+    var p = poolByVideo(v) || {name:v||"—", video:v||"—", cp:"—", country:"—", type:"—", lang:"—"};
+    function cell(label, html){ return '<div class="mic-cell"><div class="mic-l">'+label+'</div><div class="mic-v">'+html+'</div></div>'; }
+    return '<div class="media-info-card">'+
+      '<div class="mic-title">媒资信息</div>'+
+      '<div class="mic-grid">'+
+        cell("媒资信息", '<div class="pmn">'+esc(p.name)+'</div><div class="pmi">VideoID:'+esc(p.video)+'</div>')+
+        cell("内容商", esc(p.cp||"—"))+
+        cell("可用国家", esc(p.country||"—"))+
+        cell("播放形式", "URL")+
+        cell("媒资状态", '<span class="badge b-run"><span class="d"></span>上线</span>')+
+        cell("类型", esc(p.type||"—"))+
+        cell("语言", esc(p.lang||"—"))+
+      '</div>'+
+    "</div>";
+  }
+
+  /* 第二步 / 编辑单页共用的主体内容（热点来源、YouTube、新闻官网、国家与关联场景） */
+  function mediaStep2Main(st){
     var ytOn = st.srcs.indexOf("YouTube")>=0;
     var nwOn = st.srcs.indexOf("新闻官网")>=0;
+    return '<p class="s-title">热点来源<span class="req">*</span><span class="opt">（多选，最多 2 个来源类型）</span></p>'+
+      '<div class="src-chips">'+
+        '<label class="src-chip'+(ytOn?" on":"")+'"><input type="checkbox" value="YouTube" data-src="YouTube"'+(ytOn?" checked":"")+"> YouTube</label>"+
+        '<label class="src-chip'+(nwOn?" on":"")+'"><input type="checkbox" value="新闻官网" data-src="新闻官网"'+(nwOn?" checked":"")+"> 新闻官网</label>"+
+      "</div>"+
+      '<div class="src-block" id="blk-yt"'+(ytOn?"":" hidden")+">"+
+        '<p class="b-title"><span class="yt-ic" style="width:15px;height:11px;display:inline-block"></span>YouTube 配置</p>'+
+        '<div class="f-item" style="max-width:440px"><label>频道 Handle <span class="help-tip" style="display:inline;color:var(--ink-3)">（如 @recordnews）</span></label>'+
+          '<input class="ipt" id="ytHandle" placeholder="@" value="'+esc(st.ytHandle||"")+'"></div>'+
+        noticeBoxHtml("yt", st.noticeYt)+
+      "</div>"+
+      '<div class="src-block" id="blk-nw"'+(nwOn?"":" hidden")+">"+
+        '<p class="b-title"><span class="badge b-news" style="padding:0 6px;font-size:10px">官网</span>新闻官网 配置</p>'+
+        '<div class="f-item"><label>官网地址 <span class="help-tip" style="display:inline;color:var(--ink-3)">（如 https://www.bfmtv.com/）</span></label>'+
+          '<input class="ipt" id="nwUrl" placeholder="https://" value="'+esc(st.newsUrl||"")+'"></div>'+
+        '<div class="f-item" style="max-width:360px"><label>爬取频次</label>'+
+          '<div class="freq-box"><input class="ipt" id="nwFreqN" type="number" min="1" value="'+(st.freqN||3)+'">'+
+          '<select class="ipt" id="nwFreqU"><option'+(st.freqU==="小时"?" selected":"")+">小时</option><option"+(st.freqU==="天"?" selected":"")+">天</option><option"+(st.freqU==="分钟"?" selected":"")+">分钟</option></select></div></div>"+
+        noticeBoxHtml("nw", st.noticeNw)+
+      "</div>"+
+      '<div class="src-block" id="blk-scene">'+
+        '<p class="b-title">国家与关联场景</p>'+
+        '<div class="f-item" style="max-width:300px"><label>国家 *</label><select class="ipt" id="mCountry">'+MEDIA_COUNTRIES.map(function(c){return '<option value="'+esc(c)+'"'+(c===st.country?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select></div>'+
+        '<p class="s-title" style="margin-top:6px">关联场景<span class="opt">（多选，每个场景对应一个模板配置）</span></p>'+
+        '<div class="src-chips" id="sceneChips">'+MEDIA_SCENES.map(function(s){ var on = st.scenes[s]; return '<label class="src-chip'+(on?" on":"")+'"><input type="checkbox" value="'+esc(s)+'" data-scene="'+esc(s)+'"'+(on?' checked':'')+'> '+esc(s)+'</label>'; }).join("")+'</div>'+
+        '<div id="sceneTpls" style="margin-top:10px">'+sceneTplsHtml(st)+'</div>'+
+      "</div>";
+  }
+
+  function renderMediaStep2(st){
+    var isEdit = st.mode==="edit";
     var body =
-      '<div class="media-form">'+selBarHtml(st)+
-        '<p class="s-title">热点来源<span class="req">*</span><span class="opt">（多选，最多 2 个来源类型）</span></p>'+
-        '<div class="src-chips">'+
-          '<label class="src-chip'+(ytOn?" on":"")+'"><input type="checkbox" value="YouTube" data-src="YouTube"'+(ytOn?" checked":"")+"> YouTube</label>"+
-          '<label class="src-chip'+(nwOn?" on":"")+'"><input type="checkbox" value="新闻官网" data-src="新闻官网"'+(nwOn?" checked":"")+"> 新闻官网</label>"+
-        "</div>"+
-        '<div class="src-block" id="blk-yt"'+(ytOn?"":" hidden")+">"+
-          '<p class="b-title"><span class="yt-ic" style="width:15px;height:11px;display:inline-block"></span>YouTube 配置</p>'+
-          '<div class="f-item" style="max-width:440px"><label>频道 Handle <span class="help-tip" style="display:inline;color:var(--ink-3)">（如 @recordnews）</span></label>'+
-            '<input class="ipt" id="ytHandle" placeholder="@" value="'+esc(st.ytHandle||"")+'"></div>'+
-          noticeBoxHtml("yt", st.noticeYt)+
-        "</div>"+
-        '<div class="src-block" id="blk-nw"'+(nwOn?"":" hidden")+">"+
-          '<p class="b-title"><span class="badge b-news" style="padding:0 6px;font-size:10px">官网</span>新闻官网 配置</p>'+
-          '<div class="f-item"><label>官网地址 <span class="help-tip" style="display:inline;color:var(--ink-3)">（如 https://www.bfmtv.com/）</span></label>'+
-            '<input class="ipt" id="nwUrl" placeholder="https://" value="'+esc(st.newsUrl||"")+'"></div>'+
-          '<div class="f-item" style="max-width:360px"><label>爬取频次</label>'+
-            '<div class="freq-box"><input class="ipt" id="nwFreqN" type="number" min="1" value="'+(st.freqN||3)+'">'+
-            '<select class="ipt" id="nwFreqU"><option'+(st.freqU==="小时"?" selected":"")+">小时</option><option"+(st.freqU==="天"?" selected":"")+">天</option><option"+(st.freqU==="分钟"?" selected":"")+">分钟</option></select></div></div>"+
-          noticeBoxHtml("nw", st.noticeNw)+
-        "</div>"+
-        '<div class="src-block" id="blk-scene">'+
-          '<p class="b-title">国家与关联场景</p>'+
-          '<div class="f-item" style="max-width:300px"><label>国家 *</label><select class="ipt" id="mCountry">'+MEDIA_COUNTRIES.map(function(c){return '<option value="'+esc(c)+'"'+(c===st.country?' selected':'')+'>'+esc(c)+'</option>';}).join("")+'</select></div>'+
-          '<p class="s-title" style="margin-top:6px">关联场景<span class="opt">（多选，每个场景对应一个模板配置）</span></p>'+
-          '<div class="src-chips" id="sceneChips">'+MEDIA_SCENES.map(function(s){ var on = st.scenes[s]; return '<label class="src-chip'+(on?" on":"")+'"><input type="checkbox" value="'+esc(s)+'" data-scene="'+esc(s)+'"'+(on?' checked':'')+'> '+esc(s)+'</label>'; }).join("")+'</div>'+
-          '<div id="sceneTpls" style="margin-top:10px">'+sceneTplsHtml(st)+'</div>'+
-        '</div>'+
+      '<div class="media-form">'+selBarHtml(st)+mediaStep2Main(st)+
         '<div class="step-ft"><button class="btn" id="mPrev">上一步</button>'+
           '<div class="r"><button class="btn" data-mcl>取消</button><button class="btn primary" id="mOk">确定</button></div></div>'+
       "</div>";
     openModal(isEdit?"编辑媒资配置":"添加媒资", "第 2 步：配置热点来源 / 共 2 步", body);
     bindStep2();
   }
+
+  /* 编辑模式：合并为单页——不展示第一步选媒资，直接在第二步内容上方放置媒资信息卡 */
+  function renderMediaEditSingle(st){
+    var body =
+      '<div class="media-form">'+mediaInfoCardHtml(st)+mediaStep2Main(st)+
+        '<div class="step-ft"><div class="r"><button class="btn" data-mcl>取消</button><button class="btn primary" id="mOk">确定</button></div></div>'+
+      "</div>";
+    openModal("编辑媒资配置", "编辑媒资热点来源配置", body);
+    bindStep2();
+  }
+
 
   function readNotice(pfx){
     var g = function(id){ var el=document.getElementById(id); return el?el.value:null; };
@@ -2323,7 +2366,8 @@
       var sctBox = document.getElementById("sceneTpls");
       if(sctBox){ st.scenes = {}; sctBox.querySelectorAll(".scene-tpl-row").forEach(function(row){ var k=row.dataset.sc; st.scenes[k] = {tpl:row.querySelector('[data-sct="tpl"]').value, size:row.querySelector('[data-sct="size"]').value, font:row.querySelector('[data-sct="font"]').value, psd:(row.querySelector('[data-sct="psd"]')||{}).value||""}; }); }
     }
-    $("mPrev").addEventListener("click", function(){ syncStep2ToState(); renderMediaStep1(st); });
+    var mPrev = $("mPrev");
+    if(mPrev) mPrev.addEventListener("click", function(){ syncStep2ToState(); renderMediaStep1(st); });
     $("mOk").addEventListener("click", mediaSubmit);
   }
 
